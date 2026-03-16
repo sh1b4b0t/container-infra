@@ -180,11 +180,9 @@ cmd_reset() {
         return 0
     fi
 
-    echo "Removendo container..."
     container stop "$CONTAINER_NAME" 2>/dev/null || true
     container delete "$CONTAINER_NAME" 2>/dev/null || true
 
-    echo "Removendo volumes..."
     container volume delete "$VOLUME_DATA" 2>/dev/null || true
     container volume delete "$VOLUME_CONFIG" 2>/dev/null || true
 
