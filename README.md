@@ -27,16 +27,35 @@ container-infra/
 │   ├── config.yaml
 │   ├── .env.example
 │   └── README.md
+├── container-tempo/              # Grafana Tempo (traces)
+│   ├── tempo-dev.sh
+│   ├── tempo.yaml
+│   └── README.md
+├── container-otel-collector/     # OpenTelemetry Collector
+│   ├── otel-collector-dev.sh
+│   ├── otel-collector.yaml
+│   └── README.md
+├── container-prometheus/         # Prometheus (métricas)
+│   ├── prometheus-dev.sh
+│   ├── prometheus.yml
+│   └── README.md
+├── container-grafana/            # Grafana (dashboards)
+│   ├── grafana-dev.sh
+│   └── README.md
 └── container-{service}/          # Futuros containers
 ```
 
 ## Containers Disponíveis
 
-| Container | Serviço | Porta | String de Conexão |
-|-----------|---------|-------|-------------------|
+| Container | Serviço | Porta(s) | String de Conexão |
+|-----------|---------|----------|-------------------|
 | container-postgres | PostgreSQL 17 | 5432 | `postgresql://postgres:postgres@192.168.64.1:5432` |
 | container-redis | Redis 7 | 6379 | `redis://192.168.64.1:6379` |
 | container-litellm | LiteLLM Proxy | 4000 | `http://192.168.64.1:4000/v1` |
+| container-tempo | Grafana Tempo | 3200, 4317, 4318 | `http://localhost:3200` |
+| container-otel-collector | OpenTelemetry Collector | 4315, 4316, 8888, 8889 | gRPC `localhost:4315` |
+| container-prometheus | Prometheus | 9090 | `http://localhost:9090` |
+| container-grafana | Grafana | 3000 | `http://localhost:3000` |
 
 ## Requisitos
 
@@ -47,18 +66,24 @@ container-infra/
 
 ```bash
 # PostgreSQL
-cd container-postgres
-./pg-dev.sh start
+cd container-postgres && ./pg-dev.sh start
 
 # Redis
-cd container-redis
-./redis-dev.sh start
+cd container-redis && ./redis-dev.sh start
 
 # LiteLLM (requer PostgreSQL e Redis rodando)
 cd container-litellm
-cp .env.example .env
-# Edite .env com suas API keys
+cp .env.example .env  # edite com suas API keys
 ./litellm-dev.sh start
+
+# Stack de Observabilidade (ordem importa)
+cd container-tempo && ./tempo-dev.sh start
+cd container-otel-collector && ./otel-collector-dev.sh start
+cd container-prometheus && ./prometheus-dev.sh start
+cd container-grafana && ./grafana-dev.sh start
+
+# Ver status de todos os containers
+./status.sh
 ```
 
 ## Criando Novos Containers

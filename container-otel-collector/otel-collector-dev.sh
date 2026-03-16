@@ -4,16 +4,17 @@ set -e
 # ============================================
 # Configuração
 # ============================================
-CONTAINER_NAME="grafana-dev"
-VOLUME_DATA="grafana-data"
-VOLUME_CONFIG="grafana-config"
-PORT=3000
-IMAGE="grafana/grafana:11.4.0"
-CONFIG_FILE="datasources.yaml"
+CONTAINER_NAME="otel-collector-dev"
+VOLUME_DATA="otel-collector-data"
+VOLUME_CONFIG="otel-collector-config"
+PORT=4315
+PORT_HTTP=4316
+PORT_METRICS=8888
+PORT_PROMETHEUS=8889
+IMAGE="otel/opentelemetry-collector-contrib:0.122.0"
+CONFIG_FILE="otel-collector.yaml"
 
-# Dependências
 TEMPO_CONTAINER="tempo-dev"
-PROMETHEUS_CONTAINER="prometheus-dev"
 
 # Diretório do script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,17 +23,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Funções Auxiliares
 # ============================================
 print_usage() {
-    echo "Uso: $0 {start|stop|status|logs|shell|reset}"
+    echo "Uso: $0 {start|stop|status|logs|shell|reset|test}"
     echo ""
     echo "Comandos:"
-    echo "  start   Inicia o container Grafana"
+    echo "  start   Inicia o container OTEL Collector"
     echo "  stop    Para o container"
     echo "  status  Mostra status do container"
-    echo "  logs    Exibe logs do Grafana"
+    echo "  logs    Exibe logs do OTEL Collector"
     echo "  shell   Abre shell no container"
-    echo "  reset   Remove container e volumes (CUIDADO: apaga dashboards e configurações)"
+    echo "  reset   Remove container e volumes"
+    echo "  test    Testa conectividade com o OTEL Collector"
     echo ""
-    echo "URL: http://localhost:$PORT"
+    echo "Endpoints:"
+    echo "  gRPC receive:      localhost:$PORT"
+    echo "  HTTP receive:      http://localhost:$PORT_HTTP"
+    echo "  Self-metrics:      http://localhost:$PORT_METRICS/metrics"
+    echo "  Prometheus scrape: http://localhost:$PORT_PROMETHEUS/metrics"
 }
 
 check_container_running() {
@@ -56,22 +62,16 @@ check_config_file() {
 }
 
 check_dependencies() {
-    local ok=0
+    echo "Verificando dependências..."
+
     if ! container list --quiet 2>/dev/null | grep -q "^$TEMPO_CONTAINER$"; then
         echo "❌ Dependência '$TEMPO_CONTAINER' não está rodando."
-        echo "   Execute: cd ../container-tempo && ./tempo-dev.sh start"
-        ok=1
-    else
-        echo "   ✅ $TEMPO_CONTAINER está rodando"
+        echo "   Inicie o container-tempo primeiro: cd ../container-tempo && ./tempo-dev.sh start"
+        return 1
     fi
-    if ! container list --quiet 2>/dev/null | grep -q "^$PROMETHEUS_CONTAINER$"; then
-        echo "❌ Dependência '$PROMETHEUS_CONTAINER' não está rodando."
-        echo "   Execute: cd ../container-prometheus && ./prometheus-dev.sh start"
-        ok=1
-    else
-        echo "   ✅ $PROMETHEUS_CONTAINER está rodando"
-    fi
-    return $ok
+
+    echo "   ✅ $TEMPO_CONTAINER está rodando"
+    return 0
 }
 
 get_container_ip() {
@@ -86,30 +86,21 @@ create_volume_and_copy_config() {
         container volume create "$VOLUME_CONFIG"
     fi
 
-    local tempo_ip prometheus_ip
+    local tempo_ip
     tempo_ip=$(get_container_ip "$TEMPO_CONTAINER")
-    prometheus_ip=$(get_container_ip "$PROMETHEUS_CONTAINER")
 
     if [ -z "$tempo_ip" ]; then
         echo "❌ Não foi possível detectar o IP do Tempo."
         return 1
     fi
-    if [ -z "$prometheus_ip" ]; then
-        echo "❌ Não foi possível detectar o IP do Prometheus."
-        return 1
-    fi
 
     echo "   IP do Tempo detectado: $tempo_ip"
-    echo "   IP do Prometheus detectado: $prometheus_ip"
 
-    echo "Copiando datasources para o volume..."
-    sed \
-        -e "s|192\.168\.64\.1:3200|${tempo_ip}:3200|g" \
-        -e "s|192\.168\.64\.1:9090|${prometheus_ip}:9090|g" \
-        "$SCRIPT_DIR/$CONFIG_FILE" | container run --rm -i \
+    echo "Copiando configuração para o volume..."
+    sed "s/192\.168\.64\.1:4317/${tempo_ip}:4317/g" "$SCRIPT_DIR/$CONFIG_FILE" | container run --rm -i \
         -v "$VOLUME_CONFIG":/config \
         alpine:latest \
-        sh -c "cat > /config/datasources.yaml"
+        sh -c "cat > /config/otel-collector.yaml"
 
     echo "Configuração copiada com sucesso."
 }
@@ -118,10 +109,10 @@ create_volume_and_copy_config() {
 # Comandos
 # ============================================
 cmd_start() {
-    echo "Iniciando Grafana..."
+    echo "Iniciando OTEL Collector..."
 
     check_config_file || return 1
-    check_dependencies
+    check_dependencies || return 1
 
     # Verificar se container já existe e está rodando
     if check_container_running; then
@@ -137,38 +128,40 @@ cmd_start() {
         return 0
     fi
 
-    # Criar volume de dados se não existir
+    # Criar volume de dados se não existir (para consistência com o padrão)
     if ! check_volume_data_exists; then
         echo "Criando volume '$VOLUME_DATA'..."
         container volume create "$VOLUME_DATA"
     fi
 
-    # Criar volume de config e copiar datasources
+    # Criar volume de config e copiar configuração
     create_volume_and_copy_config
 
     # Criar e iniciar container
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
-        -p "$PORT":3000 \
-        -v "$VOLUME_DATA":/var/lib/grafana \
-        -v "$VOLUME_CONFIG":/etc/grafana/provisioning/datasources:ro \
-        -e GF_AUTH_ANONYMOUS_ENABLED=true \
-        -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
-        -e GF_FEATURE_TOGGLES_ENABLE=traceqlEditor \
+        -p "$PORT":4315 \
+        -p "$PORT_HTTP":4316 \
+        -p "$PORT_METRICS":8888 \
+        -p "$PORT_PROMETHEUS":8889 \
+        -v "$VOLUME_CONFIG":/etc/otel:ro \
         -m 256M \
-        "$IMAGE"
+        "$IMAGE" \
+        --config=/etc/otel/otel-collector.yaml
 
     echo ""
-    echo "Grafana iniciado com sucesso!"
-    echo "URL: http://localhost:$PORT"
+    echo "OTEL Collector iniciado com sucesso!"
+    echo "gRPC receive:      localhost:$PORT"
+    echo "HTTP receive:      http://localhost:$PORT_HTTP"
+    echo "Self-metrics:      http://localhost:$PORT_METRICS/metrics"
+    echo "Prometheus scrape: http://localhost:$PORT_PROMETHEUS/metrics"
     echo ""
-    echo "Aguarde alguns segundos para o Grafana inicializar completamente."
-    echo "Login: admin / admin (ou acesso anônimo como Admin)"
+    echo "Aguarde alguns segundos para o OTEL Collector inicializar completamente."
 }
 
 cmd_stop() {
-    echo "Parando Grafana..."
+    echo "Parando OTEL Collector..."
 
     if ! check_container_running; then
         echo "Container '$CONTAINER_NAME' não está rodando."
@@ -180,7 +173,7 @@ cmd_stop() {
 }
 
 cmd_status() {
-    echo "Status do Grafana:"
+    echo "Status do OTEL Collector:"
     echo ""
 
     if check_container_running; then
@@ -189,7 +182,10 @@ cmd_status() {
         echo ""
         container list
         echo ""
-        echo "URL: http://localhost:$PORT"
+        echo "gRPC receive:      localhost:$PORT"
+        echo "HTTP receive:      http://localhost:$PORT_HTTP"
+        echo "Self-metrics:      http://localhost:$PORT_METRICS/metrics"
+        echo "Prometheus scrape: http://localhost:$PORT_PROMETHEUS/metrics"
     else
         echo "Container: $CONTAINER_NAME"
         echo "Status: PARADO ou NÃO EXISTE"
@@ -202,13 +198,6 @@ cmd_status() {
     echo ""
     echo "Volume de config '$VOLUME_CONFIG':"
     check_volume_config_exists && echo "  Existe" || echo "  Não existe"
-
-    echo ""
-    echo "Dependências:"
-    echo -n "  Tempo ($TEMPO_CONTAINER): "
-    container list --quiet 2>/dev/null | grep -q "^$TEMPO_CONTAINER$" && echo "✅ Rodando" || echo "❌ Parado"
-    echo -n "  Prometheus ($PROMETHEUS_CONTAINER): "
-    container list --quiet 2>/dev/null | grep -q "^$PROMETHEUS_CONTAINER$" && echo "✅ Rodando" || echo "❌ Parado"
 }
 
 cmd_logs() {
@@ -230,7 +219,7 @@ cmd_shell() {
 }
 
 cmd_reset() {
-    echo "⚠️  ATENÇÃO: Isso vai remover o container, dashboards e configurações!"
+    echo "⚠️  ATENÇÃO: Isso vai remover o container e os volumes!"
     read -p "Tem certeza? (y/N): " confirm
 
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
@@ -244,6 +233,37 @@ cmd_reset() {
     container volume delete "$VOLUME_CONFIG" 2>/dev/null || true
 
     echo "Reset completo. Use '$0 start' para criar um novo container."
+}
+
+cmd_test() {
+    if ! check_container_running; then
+        echo "Container '$CONTAINER_NAME' não está rodando. Use '$0 start' primeiro."
+        return 1
+    fi
+
+    echo "Testando conectividade com OTEL Collector..."
+    echo ""
+
+    echo "1. Verificando self-metrics em :$PORT_METRICS/metrics..."
+    local http_code
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT_METRICS/metrics 2>/dev/null)
+
+    if [ "$http_code" = "200" ]; then
+        echo "   ✅ OTEL Collector está pronto (HTTP $http_code)"
+    else
+        echo "   ❌ OTEL Collector não está pronto (HTTP $http_code)"
+        return 1
+    fi
+
+    echo ""
+    echo "✅ Todos os testes passaram!"
+    echo ""
+    echo "Para enviar telemetria, configure o OpenTelemetry SDK:"
+    echo "  OTLP gRPC: localhost:$PORT"
+    echo "  OTLP HTTP: http://localhost:$PORT_HTTP"
+    echo ""
+    echo "Variável de ambiente para Claude Code:"
+    echo "  OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:$PORT_HTTP"
 }
 
 # ============================================
@@ -267,6 +287,9 @@ case "$1" in
         ;;
     reset)
         cmd_reset
+        ;;
+    test)
+        cmd_test
         ;;
     *)
         print_usage

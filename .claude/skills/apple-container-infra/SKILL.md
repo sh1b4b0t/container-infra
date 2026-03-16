@@ -135,6 +135,13 @@ check_dependencies() {
     return 0
 }
 
+# Always include when service needs inter-container IPs:
+get_container_ip() {
+    container inspect "$1" 2>/dev/null \
+        | grep -o '"ipv4Address":"[^"]*"' | head -1 \
+        | cut -d'"' -f4 | cut -d'/' -f1 | tr -d '\\'
+}
+
 create_volume_and_copy_config() {
     if ! check_volume_config_exists; then
         echo "Criando volume '$VOLUME_CONFIG'..."
@@ -389,26 +396,35 @@ macOS Host (192.168.64.1)
 
 **Option 2: Dynamic IP detection (required when gateway IP unreliable)**
 
-Detect actual container IPs at runtime using `container inspect`:
+**Always use the standard `get_container_ip()` helper** — add it to every script that needs inter-container communication:
 
 ```bash
-POSTGRES_IP=$(container inspect "$POSTGRES_CONTAINER" 2>/dev/null \
-    | grep -o '"ipv4Address":"[^"]*"' | head -1 \
-    | cut -d'"' -f4 | cut -d'/' -f1 | tr -d '\\')
+get_container_ip() {
+    container inspect "$1" 2>/dev/null \
+        | grep -o '"ipv4Address":"[^"]*"' | head -1 \
+        | cut -d'"' -f4 | cut -d'/' -f1 | tr -d '\\'
+}
+```
 
-REDIS_IP=$(container inspect "$REDIS_CONTAINER" 2>/dev/null \
-    | grep -o '"ipv4Address":"[^"]*"' | head -1 \
-    | cut -d'"' -f4 | cut -d'/' -f1 | tr -d '\\')
+Usage in `create_volume_and_copy_config` or `cmd_start`:
+
+```bash
+POSTGRES_IP=$(get_container_ip "$POSTGRES_CONTAINER")
+REDIS_IP=$(get_container_ip "$REDIS_CONTAINER")
 
 if [ -z "$POSTGRES_IP" ] || [ -z "$REDIS_IP" ]; then
     echo "❌ Não foi possível detectar os IPs das dependências."
     return 1
 fi
 
-# Override host in DATABASE_URL from .env
+# Override host in DATABASE_URL from .env (for services passing URL as env var)
 DATABASE_URL_TEMPLATE=$(get_env_var "DATABASE_URL")
 DATABASE_URL=$(echo "$DATABASE_URL_TEMPLATE" | sed "s|@[^:]*:\([0-9]*\)/|@${POSTGRES_IP}:\1/|")
 REDIS_HOST="$REDIS_IP"
+
+# Override IPs in config file before copying to volume (for services with config files)
+sed "s/192\.168\.64\.1:4317/${TEMPO_IP}:4317/g" "$SCRIPT_DIR/$CONFIG_FILE" | container run --rm -i \
+    -v "$VOLUME_CONFIG":/config alpine:latest sh -c "cat > /config/$CONFIG_FILE"
 ```
 
 Pass resolved values as `-e` flags to `container run`.
@@ -452,6 +468,7 @@ See [issue #333](https://github.com/apple/container/issues/333) for details.
 | .env.example exists | Present if service needs credentials |
 | .env excluded from git | Root `.gitignore` has `**/.env` |
 | No hardcoded secrets | All credentials via `get_env_var` helper |
+| IP detection standardized | Uses `get_container_ip "$CONTAINER_VAR"` — no per-dependency functions, no inline `container inspect` |
 | Specific image version | NOT `:latest` |
 | Stopped container restart | `container list -a` check in `cmd_start` |
 | Both volumes deleted on reset | `cmd_reset` removes `VOLUME_DATA` and `VOLUME_CONFIG` |
@@ -465,7 +482,9 @@ See [issue #333](https://github.com/apple/container/issues/333) for details.
 | Using `:latest` tag | Pin to specific version like `postgres:17-alpine` |
 | Database mounting to data subdirectory | Mount to parent dir (PostgreSQL: `/var/lib/postgresql`) |
 | Using `localhost` in inter-container config | Use gateway IP `192.168.64.1` or dynamic `container inspect` |
-| Hardcoding `192.168.64.1` when it fails | Use `container inspect` to detect IP dynamically |
+| Hardcoding `192.168.64.1` when it fails | Use `get_container_ip "$CONTAINER_VAR"` to detect IP dynamically |
+| Named per-dependency IP functions (`get_tempo_ip`, `get_postgres_ip`) | Use the single generic `get_container_ip()` helper with the container name as argument |
+| Inline `container inspect` pipe chains in `cmd_start` | Extract to `get_container_ip()` — keeps `cmd_start` readable |
 | Missing stopped-container restart path | Add `container list -a` check before `container run` in `cmd_start` |
 | Single volume for everything | Always define separate `VOLUME_DATA` and `VOLUME_CONFIG` |
 | Config options as CLI args | Move to a config file, copy to `VOLUME_CONFIG` at start |

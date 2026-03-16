@@ -1,16 +1,22 @@
 apiVersion: 1
 
 datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://192.168.64.1:9090
+    isDefault: false
+    jsonData:
+      httpMethod: POST
+
   - name: Tempo
     type: tempo
     access: proxy
     url: http://192.168.64.1:3200
     isDefault: true
     jsonData:
-      tracesToLogsV2:
-        datasourceUid: ''
-      lokiSearch:
-        datasourceUid: ''
+      tracesToMetrics:
+        datasourceUid: prometheus
       nodeGraph:
         enabled: true
       search:

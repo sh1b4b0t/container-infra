@@ -41,6 +41,12 @@ check_container_running() {
     container list --quiet 2>/dev/null | grep -q "^$CONTAINER_NAME$"
 }
 
+get_container_ip() {
+    container inspect "$1" 2>/dev/null \
+        | grep -o '"ipv4Address":"[^"]*"' | head -1 \
+        | cut -d'"' -f4 | cut -d'/' -f1 | tr -d '\\'
+}
+
 check_volume_data_exists() {
     container volume list --quiet 2>/dev/null | grep -q "^$VOLUME_DATA$"
 }
@@ -169,8 +175,8 @@ cmd_start() {
     REDIS_PORT=$(grep REDIS_PORT "$SCRIPT_DIR/$ENV_FILE" | cut -d= -f2)
 
     # Detectar IPs dinâmicos das dependências
-    POSTGRES_IP=$(container inspect "$POSTGRES_CONTAINER" 2>/dev/null | grep -o '"ipv4Address":"[^"]*"' | head -1 | cut -d'"' -f4 | cut -d'/' -f1 | tr -d '\\')
-    REDIS_IP=$(container inspect "$REDIS_CONTAINER" 2>/dev/null | grep -o '"ipv4Address":"[^"]*"' | head -1 | cut -d'"' -f4 | cut -d'/' -f1 | tr -d '\\')
+    POSTGRES_IP=$(get_container_ip "$POSTGRES_CONTAINER")
+    REDIS_IP=$(get_container_ip "$REDIS_CONTAINER")
 
     if [ -z "$POSTGRES_IP" ] || [ -z "$REDIS_IP" ]; then
         echo "❌ Não foi possível detectar os IPs das dependências."
