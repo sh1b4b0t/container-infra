@@ -314,7 +314,7 @@ Each service has a config file committed to git and copied into `VOLUME_CONFIG` 
 | Service | Config file | Mount path | Start command |
 |---------|-------------|------------|---------------|
 | Redis | `redis.conf` | `/usr/local/etc/redis:ro` | `redis-server /usr/local/etc/redis/redis.conf` |
-| PostgreSQL | `postgresql.conf` | `/etc/postgresql/conf.d:ro` | `postgres -c "include_dir=/etc/postgresql/conf.d"` |
+| PostgreSQL | `postgresql.conf` | `/etc/postgresql/conf.d:ro` | `postgres -c "config_file=/etc/postgresql/conf.d/postgresql.conf"` |
 | LiteLLM | `config.yaml` | `/app/config` | `--config /app/config/config.yaml` |
 
 **Redis example (`redis.conf`):**
@@ -326,10 +326,22 @@ save 300 10
 save 60 10000
 ```
 
-**PostgreSQL example (`postgresql.conf`) — custom overrides only:**
+**PostgreSQL example (`postgresql.conf`) — minimal complete config (used as primary via `config_file`):**
 ```
+# Connection Settings
+listen_addresses = '*'
 max_connections = 100
+
+# Memory Settings
+shared_buffers = 128MB
+
+# Locale / Timezone
+datestyle = 'iso, mdy'
+timezone = 'Etc/UTC'
+log_timezone = 'Etc/UTC'
 ```
+
+> **Note:** `include_dir` is NOT a GUC parameter — it cannot be passed via `-c`. Use `config_file` pointing to a complete (minimal) config file instead.
 
 **LiteLLM config.yaml — reference env vars via `os.environ/VAR`:**
 ```yaml
