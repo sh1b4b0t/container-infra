@@ -59,7 +59,7 @@ Authorization: Bearer sk-litellm-dev-key
 | `status` | Mostra status do container |
 | `logs` | Exibe logs do LiteLLM |
 | `shell` | Abre shell no container |
-| `reset` | Remove container (mantém banco e cache) |
+| `reset` | Remove container e volumes (mantém banco PostgreSQL e cache Redis) |
 | `models` | Lista modelos disponíveis |
 | `test` | Testa conexão com o proxy |
 
@@ -114,6 +114,15 @@ curl http://localhost:4000/v1/chat/completions \
     "messages": [{"role": "user", "content": "Hello!"}]
   }'
 ```
+
+## Volumes
+
+Dois volumes gerenciados pelo Apple container:
+
+- `litellm-data` — dados locais do LiteLLM (`/app/data`)
+- `litellm-config` — configuração (`config.yaml`) em `/app/config`
+
+Para alterar a configuração de modelos, edite `config.yaml` antes de iniciar (ou após `reset`).
 
 ## Configuração
 

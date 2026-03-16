@@ -5,9 +5,14 @@ set -e
 # Configuração
 # ============================================
 CONTAINER_NAME="redis-dev"
-VOLUME_NAME="redis-data"
+VOLUME_DATA="redis-data"
+VOLUME_CONFIG="redis-config"
 PORT=6379
 IMAGE="redis:7-alpine"
+CONFIG_FILE="redis.conf"
+
+# Diretório do script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ============================================
 # Funções Auxiliares
@@ -33,8 +38,27 @@ check_container_running() {
     container list --quiet 2>/dev/null | grep -q "^$CONTAINER_NAME$"
 }
 
-check_volume_exists() {
-    container volume list --quiet 2>/dev/null | grep -q "^$VOLUME_NAME$"
+check_volume_data_exists() {
+    container volume list --quiet 2>/dev/null | grep -q "^$VOLUME_DATA$"
+}
+
+check_volume_config_exists() {
+    container volume list --quiet 2>/dev/null | grep -q "^$VOLUME_CONFIG$"
+}
+
+create_volume_and_copy_config() {
+    if ! check_volume_config_exists; then
+        echo "Criando volume '$VOLUME_CONFIG'..."
+        container volume create "$VOLUME_CONFIG"
+    fi
+
+    echo "Copiando configuração para o volume..."
+    cat "$SCRIPT_DIR/$CONFIG_FILE" | container run --rm -i \
+        -v "$VOLUME_CONFIG":/config \
+        alpine:latest \
+        sh -c "cat > /config/redis.conf"
+
+    echo "Configuração copiada com sucesso."
 }
 
 # ============================================
@@ -57,19 +81,25 @@ cmd_start() {
         return 0
     fi
 
-    # Criar volume se não existir
-    if ! check_volume_exists; then
-        echo "Criando volume '$VOLUME_NAME'..."
-        container volume create "$VOLUME_NAME"
+    # Criar volume de dados se não existir
+    if ! check_volume_data_exists; then
+        echo "Criando volume '$VOLUME_DATA'..."
+        container volume create "$VOLUME_DATA"
     fi
+
+    # Criar volume de config e copiar configuração
+    create_volume_and_copy_config
 
     # Criar e iniciar container
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
         -p "$PORT":6379 \
-        -v "$VOLUME_NAME":/data \
-        "$IMAGE"
+        -v "$VOLUME_DATA":/data \
+        -v "$VOLUME_CONFIG":/usr/local/etc/redis:ro \
+        -m 256M \
+        "$IMAGE" \
+        redis-server /usr/local/etc/redis/redis.conf
 
     echo ""
     echo "Redis iniciado com sucesso!"
@@ -107,9 +137,17 @@ cmd_status() {
     fi
 
     echo ""
-    echo "Volume '$VOLUME_NAME':"
-    if check_volume_exists; then
+    echo "Volume de dados '$VOLUME_DATA':"
+    if check_volume_data_exists; then
         container volume list
+    else
+        echo "  Não existe"
+    fi
+
+    echo ""
+    echo "Volume de config '$VOLUME_CONFIG':"
+    if check_volume_config_exists; then
+        echo "  Existe"
     else
         echo "  Não existe"
     fi
@@ -146,10 +184,11 @@ cmd_reset() {
     container stop "$CONTAINER_NAME" 2>/dev/null || true
     container delete "$CONTAINER_NAME" 2>/dev/null || true
 
-    echo "Removendo volume..."
-    container volume delete "$VOLUME_NAME" 2>/dev/null || true
+    echo "Removendo volumes..."
+    container volume delete "$VOLUME_DATA" 2>/dev/null || true
+    container volume delete "$VOLUME_CONFIG" 2>/dev/null || true
 
-    echo "Reset completo. Use '$0 start' para criar um novo banco."
+    echo "Reset completo. Use '$0 start' para criar um novo container."
 }
 
 cmd_backup() {

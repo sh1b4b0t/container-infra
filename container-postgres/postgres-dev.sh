@@ -6,11 +6,13 @@ set -e
 # ============================================
 CONTAINER_NAME="postgres-dev"
 VOLUME_DATA="postgres-data"
+VOLUME_CONFIG="postgres-config"
 PORT=5432
 IMAGE="postgres:17-alpine"
 
 # Arquivos externos
 ENV_FILE=".env"
+CONFIG_FILE="postgresql.conf"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ============================================
@@ -41,6 +43,25 @@ check_container_running() {
 
 check_volume_data_exists() {
     container volume list --quiet 2>/dev/null | grep -q "^$VOLUME_DATA$"
+}
+
+check_volume_config_exists() {
+    container volume list --quiet 2>/dev/null | grep -q "^$VOLUME_CONFIG$"
+}
+
+create_volume_and_copy_config() {
+    if ! check_volume_config_exists; then
+        echo "Criando volume '$VOLUME_CONFIG'..."
+        container volume create "$VOLUME_CONFIG"
+    fi
+
+    echo "Copiando configuração para o volume..."
+    cat "$SCRIPT_DIR/$CONFIG_FILE" | container run --rm -i \
+        -v "$VOLUME_CONFIG":/config \
+        alpine:latest \
+        sh -c "cat > /config/postgresql.conf"
+
+    echo "Configuração copiada com sucesso."
 }
 
 check_env_file() {
@@ -84,11 +105,14 @@ cmd_start() {
         return 0
     fi
 
-    # Criar volume se não existir
+    # Criar volume de dados se não existir
     if ! check_volume_data_exists; then
         echo "Criando volume '$VOLUME_DATA'..."
         container volume create "$VOLUME_DATA"
     fi
+
+    # Criar volume de config e copiar configuração
+    create_volume_and_copy_config
 
     # Criar e iniciar container
     echo "Criando container '$CONTAINER_NAME'..."
@@ -99,7 +123,10 @@ cmd_start() {
         -e POSTGRES_DB="$POSTGRES_DB" \
         -p "$PORT":5432 \
         -v "$VOLUME_DATA":/var/lib/postgresql \
-        "$IMAGE"
+        -v "$VOLUME_CONFIG":/etc/postgresql/conf.d:ro \
+        -m 512M \
+        "$IMAGE" \
+        postgres -c "include_dir=/etc/postgresql/conf.d"
 
     echo ""
     echo "PostgreSQL iniciado com sucesso!"
@@ -143,9 +170,17 @@ cmd_status() {
     fi
 
     echo ""
-    echo "Volume '$VOLUME_DATA':"
+    echo "Volume de dados '$VOLUME_DATA':"
     if check_volume_data_exists; then
         container volume list
+    else
+        echo "  Não existe"
+    fi
+
+    echo ""
+    echo "Volume de config '$VOLUME_CONFIG':"
+    if check_volume_config_exists; then
+        echo "  Existe"
     else
         echo "  Não existe"
     fi
@@ -184,8 +219,9 @@ cmd_reset() {
     container stop "$CONTAINER_NAME" 2>/dev/null || true
     container delete "$CONTAINER_NAME" 2>/dev/null || true
 
-    echo "Removendo volume..."
+    echo "Removendo volumes..."
     container volume delete "$VOLUME_DATA" 2>/dev/null || true
+    container volume delete "$VOLUME_CONFIG" 2>/dev/null || true
 
     echo "Reset completo. Use '$0 start' para criar um novo banco."
 }

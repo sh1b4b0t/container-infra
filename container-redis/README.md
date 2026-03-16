@@ -58,16 +58,22 @@ Edite as variáveis no topo do script `redis-dev.sh`:
 
 ```bash
 CONTAINER_NAME="redis-dev"
-VOLUME_NAME="redis-data"
+VOLUME_DATA="redis-data"    # Volume para dados RDB
+VOLUME_CONFIG="redis-config"  # Volume para redis.conf
 PORT=6379
 IMAGE="redis:7-alpine"
 ```
 
+Para alterar a configuração do Redis, edite `redis.conf` antes de iniciar (ou após `reset`).
+
 ## Persistência
 
-Os dados são persistidos em um volume nomeado gerenciado pelo Apple container. O volume sobrevive a reinicializações do container.
+Os dados são persistidos em dois volumes gerenciados pelo Apple container. Os volumes sobrevivem a reinicializações do container.
 
-Redis usa RDB (snapshots) por padrão com as seguintes regras:
+- `redis-data` — arquivos RDB (snapshots dos dados)
+- `redis-config` — configuração do Redis (`redis.conf`)
+
+Redis usa RDB (snapshots) com as seguintes regras:
 - Após 900s (15 min) se houver pelo menos 1 mudança
 - Após 300s (5 min) se houver pelo menos 10 mudanças
 - Após 60s se houver pelo menos 10000 mudanças

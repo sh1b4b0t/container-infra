@@ -5,7 +5,8 @@ set -e
 # Configuração
 # ============================================
 CONTAINER_NAME="litellm-dev"
-VOLUME_NAME="litellm-config"
+VOLUME_DATA="litellm-data"
+VOLUME_CONFIG="litellm-config"
 PORT=4000
 IMAGE="ghcr.io/berriai/litellm:main-stable"
 CONFIG_FILE="config.yaml"
@@ -40,8 +41,12 @@ check_container_running() {
     container list --quiet 2>/dev/null | grep -q "^$CONTAINER_NAME$"
 }
 
-check_volume_exists() {
-    container volume list --quiet 2>/dev/null | grep -q "^$VOLUME_NAME$"
+check_volume_data_exists() {
+    container volume list --quiet 2>/dev/null | grep -q "^$VOLUME_DATA$"
+}
+
+check_volume_config_exists() {
+    container volume list --quiet 2>/dev/null | grep -q "^$VOLUME_CONFIG$"
 }
 
 check_dependencies() {
@@ -95,16 +100,16 @@ create_database() {
 }
 
 create_volume_and_copy_config() {
-    # Criar volume se não existir
-    if ! check_volume_exists; then
-        echo "Criando volume '$VOLUME_NAME'..."
-        container volume create "$VOLUME_NAME"
+    # Criar volume de config se não existir
+    if ! check_volume_config_exists; then
+        echo "Criando volume '$VOLUME_CONFIG'..."
+        container volume create "$VOLUME_CONFIG"
     fi
 
     # Copiar config.yaml para o volume usando um container temporário
     echo "Copiando configuração para o volume..."
     cat "$SCRIPT_DIR/$CONFIG_FILE" | container run --rm -i \
-        -v "$VOLUME_NAME":/config \
+        -v "$VOLUME_CONFIG":/config \
         alpine:latest \
         sh -c "cat > /config/config.yaml"
 
@@ -148,7 +153,13 @@ cmd_start() {
     # Criar banco de dados se não existir
     create_database
 
-    # Criar volume e copiar configuração
+    # Criar volume de dados se não existir
+    if ! check_volume_data_exists; then
+        echo "Criando volume '$VOLUME_DATA'..."
+        container volume create "$VOLUME_DATA"
+    fi
+
+    # Criar volume de config e copiar configuração
     create_volume_and_copy_config
 
     # Ler variáveis do .env
@@ -178,13 +189,15 @@ cmd_start() {
     container run -d \
         --name "$CONTAINER_NAME" \
         -p "$PORT":4000 \
-        -v "$VOLUME_NAME":/app/config \
+        -v "$VOLUME_DATA":/app/data \
+        -v "$VOLUME_CONFIG":/app/config \
         -e LITELLM_MASTER_KEY="$LITELLM_MASTER_KEY" \
         -e LITELLM_SALT_KEY="$LITELLM_SALT_KEY" \
         -e ALIBABA_API_KEY="$ALIBABA_API_KEY" \
         -e DATABASE_URL="$DATABASE_URL" \
         -e REDIS_HOST="$REDIS_HOST" \
         -e REDIS_PORT="$REDIS_PORT" \
+        -m 2G \
         "$IMAGE" \
         --config /app/config/config.yaml
 
@@ -225,8 +238,16 @@ cmd_status() {
     fi
 
     echo ""
-    echo "Volume '$VOLUME_NAME':"
-    if check_volume_exists; then
+    echo "Volume de dados '$VOLUME_DATA':"
+    if check_volume_data_exists; then
+        echo "  Existe"
+    else
+        echo "  Não existe"
+    fi
+
+    echo ""
+    echo "Volume de config '$VOLUME_CONFIG':"
+    if check_volume_config_exists; then
         container volume list
     else
         echo "  Não existe"
@@ -268,7 +289,7 @@ cmd_shell() {
 }
 
 cmd_reset() {
-    echo "⚠️  ATENÇÃO: Isso vai remover o container e o volume de configuração!"
+    echo "⚠️  ATENÇÃO: Isso vai remover o container e todos os volumes!"
     read -p "Tem certeza? (y/N): " confirm
 
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
@@ -280,8 +301,9 @@ cmd_reset() {
     container stop "$CONTAINER_NAME" 2>/dev/null || true
     container delete "$CONTAINER_NAME" 2>/dev/null || true
 
-    echo "Removendo volume..."
-    container volume delete "$VOLUME_NAME" 2>/dev/null || true
+    echo "Removendo volumes..."
+    container volume delete "$VOLUME_DATA" 2>/dev/null || true
+    container volume delete "$VOLUME_CONFIG" 2>/dev/null || true
 
     echo "Reset completo. Use '$0 start' para criar um novo container."
 }

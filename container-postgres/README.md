@@ -165,6 +165,15 @@ cp .env.example .env
 ./postgres-dev.sh reset
 ```
 
+## Volumes
+
+Dois volumes gerenciados pelo Apple container:
+
+- `postgres-data` — arquivos de dados do PostgreSQL (`/var/lib/postgresql`)
+- `postgres-config` — configuração customizada (`postgresql.conf`) em `/etc/postgresql/conf.d`
+
+Para alterar configurações do PostgreSQL, edite `postgresql.conf` antes de iniciar (ou após `reset`).
+
 ## Nota Técnica
 
 O Apple container usa virtiofs para volumes. O PostgreSQL não pode inicializar diretamente em `/var/lib/postgresql/data` devido ao diretório `lost+found` presente nos volumes nomeados. A solução é montar em `/var/lib/postgresql` e deixar o PostgreSQL criar o subdiretório `data/`.
