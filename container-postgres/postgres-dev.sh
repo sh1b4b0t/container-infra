@@ -126,7 +126,7 @@ cmd_start() {
         -v "$VOLUME_CONFIG":/etc/postgresql/conf.d:ro \
         -m 512M \
         "$IMAGE" \
-        postgres -c "include_dir=/etc/postgresql/conf.d"
+        postgres -c "config_file=/etc/postgresql/conf.d/postgresql.conf"
 
     echo ""
     echo "PostgreSQL iniciado com sucesso!"
