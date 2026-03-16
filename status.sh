@@ -139,6 +139,56 @@ fi
 echo ""
 
 # ─────────────────────────────────────────────
+# OTEL Collector
+# ─────────────────────────────────────────────
+echo -e "${BOLD}OTEL Collector${RESET}"
+if check_container "otel-collector-dev"; then
+    IP=$(container_ip "otel-collector-dev")
+    echo -e "  Container:  $(status_icon up)  (IP: $IP)"
+    if check_tcp_port 4315 2>/dev/null; then
+        echo -e "  Porta 4315: $(port_icon ok)  localhost:4315          (OTLP gRPC)"
+    else
+        echo -e "  Porta 4315: $(port_icon fail)  localhost:4315          (OTLP gRPC)"
+    fi
+    if check_tcp_port 4316 2>/dev/null; then
+        echo -e "  Porta 4316: $(port_icon ok)  http://localhost:4316   (OTLP HTTP)"
+    else
+        echo -e "  Porta 4316: $(port_icon fail)  http://localhost:4316   (OTLP HTTP)"
+    fi
+    HTTP=$(check_port 8889/metrics)
+    if [ "$HTTP" = "200" ]; then
+        echo -e "  Porta 8889: $(port_icon ok)  http://localhost:8889   (Prometheus scrape)"
+    else
+        echo -e "  Porta 8889: $(port_icon fail)  (HTTP $HTTP)"
+    fi
+else
+    echo -e "  Container:  $(status_icon down)"
+    echo -e "  Porta 4315: $(port_icon fail)"
+    echo -e "  Porta 4316: $(port_icon fail)"
+    echo -e "  Porta 8889: $(port_icon fail)"
+fi
+echo ""
+
+# ─────────────────────────────────────────────
+# Prometheus
+# ─────────────────────────────────────────────
+echo -e "${BOLD}Prometheus${RESET}"
+if check_container "prometheus-dev"; then
+    IP=$(container_ip "prometheus-dev")
+    echo -e "  Container:  $(status_icon up)  (IP: $IP)"
+    HTTP=$(check_port 9090/-/ready)
+    if [ "$HTTP" = "200" ]; then
+        echo -e "  Porta 9090: $(port_icon ok)  http://localhost:9090"
+    else
+        echo -e "  Porta 9090: $(port_icon fail)  (HTTP $HTTP)"
+    fi
+else
+    echo -e "  Container:  $(status_icon down)"
+    echo -e "  Porta 9090: $(port_icon fail)"
+fi
+echo ""
+
+# ─────────────────────────────────────────────
 # Grafana
 # ─────────────────────────────────────────────
 echo -e "${BOLD}Grafana${RESET}"
@@ -162,9 +212,9 @@ echo ""
 # ─────────────────────────────────────────────
 echo -e "${BOLD}${CYAN}════════════════════════════════════════════════${RESET}"
 
-TOTAL=5
+TOTAL=7
 RUNNING=0
-for c in redis-dev postgres-dev litellm-dev tempo-dev grafana-dev; do
+for c in redis-dev postgres-dev litellm-dev tempo-dev otel-collector-dev prometheus-dev grafana-dev; do
     check_container "$c" && RUNNING=$((RUNNING + 1))
 done
 

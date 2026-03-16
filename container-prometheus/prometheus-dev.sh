@@ -4,16 +4,14 @@ set -e
 # ============================================
 # Configuração
 # ============================================
-CONTAINER_NAME="grafana-dev"
-VOLUME_DATA="grafana-data"
-VOLUME_CONFIG="grafana-config"
-PORT=3000
-IMAGE="grafana/grafana:11.4.0"
-CONFIG_FILE="datasources.yaml"
+CONTAINER_NAME="prometheus-dev"
+VOLUME_DATA="prometheus-data"
+VOLUME_CONFIG="prometheus-config"
+PORT=9090
+IMAGE="prom/prometheus:v3.2.1"
+CONFIG_FILE="prometheus.yml"
 
-# Dependências
-TEMPO_CONTAINER="tempo-dev"
-PROMETHEUS_CONTAINER="prometheus-dev"
+OTEL_COLLECTOR_CONTAINER="otel-collector-dev"
 
 # Diretório do script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,17 +20,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Funções Auxiliares
 # ============================================
 print_usage() {
-    echo "Uso: $0 {start|stop|status|logs|shell|reset}"
+    echo "Uso: $0 {start|stop|status|logs|shell|reset|test}"
     echo ""
     echo "Comandos:"
-    echo "  start   Inicia o container Grafana"
+    echo "  start   Inicia o container Prometheus"
     echo "  stop    Para o container"
     echo "  status  Mostra status do container"
-    echo "  logs    Exibe logs do Grafana"
+    echo "  logs    Exibe logs do Prometheus"
     echo "  shell   Abre shell no container"
-    echo "  reset   Remove container e volumes (CUIDADO: apaga dashboards e configurações)"
+    echo "  reset   Remove container e volumes (CUIDADO: apaga todos os dados)"
+    echo "  test    Testa conectividade com o Prometheus"
     echo ""
-    echo "URL: http://localhost:$PORT"
+    echo "Endpoints:"
+    echo "  HTTP API: http://localhost:$PORT"
 }
 
 check_container_running() {
@@ -56,22 +56,13 @@ check_config_file() {
 }
 
 check_dependencies() {
-    local ok=0
-    if ! container list --quiet 2>/dev/null | grep -q "^$TEMPO_CONTAINER$"; then
-        echo "❌ Dependência '$TEMPO_CONTAINER' não está rodando."
-        echo "   Execute: cd ../container-tempo && ./tempo-dev.sh start"
-        ok=1
-    else
-        echo "   ✅ $TEMPO_CONTAINER está rodando"
+    if ! container list --quiet 2>/dev/null | grep -q "^$OTEL_COLLECTOR_CONTAINER$"; then
+        echo "❌ Dependência '$OTEL_COLLECTOR_CONTAINER' não está rodando."
+        echo "   Inicie primeiro: cd ../container-otel-collector && ./otel-collector-dev.sh start"
+        return 1
     fi
-    if ! container list --quiet 2>/dev/null | grep -q "^$PROMETHEUS_CONTAINER$"; then
-        echo "❌ Dependência '$PROMETHEUS_CONTAINER' não está rodando."
-        echo "   Execute: cd ../container-prometheus && ./prometheus-dev.sh start"
-        ok=1
-    else
-        echo "   ✅ $PROMETHEUS_CONTAINER está rodando"
-    fi
-    return $ok
+    echo "   ✅ $OTEL_COLLECTOR_CONTAINER está rodando"
+    return 0
 }
 
 get_container_ip() {
@@ -86,30 +77,21 @@ create_volume_and_copy_config() {
         container volume create "$VOLUME_CONFIG"
     fi
 
-    local tempo_ip prometheus_ip
-    tempo_ip=$(get_container_ip "$TEMPO_CONTAINER")
-    prometheus_ip=$(get_container_ip "$PROMETHEUS_CONTAINER")
+    local otel_ip
+    otel_ip=$(get_container_ip "$OTEL_COLLECTOR_CONTAINER")
 
-    if [ -z "$tempo_ip" ]; then
-        echo "❌ Não foi possível detectar o IP do Tempo."
-        return 1
-    fi
-    if [ -z "$prometheus_ip" ]; then
-        echo "❌ Não foi possível detectar o IP do Prometheus."
+    if [ -z "$otel_ip" ]; then
+        echo "❌ Não foi possível detectar o IP do OTEL Collector."
         return 1
     fi
 
-    echo "   IP do Tempo detectado: $tempo_ip"
-    echo "   IP do Prometheus detectado: $prometheus_ip"
+    echo "   IP do OTEL Collector detectado: $otel_ip"
 
-    echo "Copiando datasources para o volume..."
-    sed \
-        -e "s|192\.168\.64\.1:3200|${tempo_ip}:3200|g" \
-        -e "s|192\.168\.64\.1:9090|${prometheus_ip}:9090|g" \
-        "$SCRIPT_DIR/$CONFIG_FILE" | container run --rm -i \
+    echo "Copiando configuração para o volume..."
+    sed "s/192\.168\.64\.1:8889/${otel_ip}:8889/g" "$SCRIPT_DIR/$CONFIG_FILE" | container run --rm -i \
         -v "$VOLUME_CONFIG":/config \
         alpine:latest \
-        sh -c "cat > /config/datasources.yaml"
+        sh -c "cat > /config/prometheus.yml"
 
     echo "Configuração copiada com sucesso."
 }
@@ -118,10 +100,10 @@ create_volume_and_copy_config() {
 # Comandos
 # ============================================
 cmd_start() {
-    echo "Iniciando Grafana..."
+    echo "Iniciando Prometheus..."
 
     check_config_file || return 1
-    check_dependencies
+    check_dependencies || return 1
 
     # Verificar se container já existe e está rodando
     if check_container_running; then
@@ -143,32 +125,32 @@ cmd_start() {
         container volume create "$VOLUME_DATA"
     fi
 
-    # Criar volume de config e copiar datasources
+    # Criar volume de config e copiar configuração
     create_volume_and_copy_config
 
     # Criar e iniciar container
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
-        -p "$PORT":3000 \
-        -v "$VOLUME_DATA":/var/lib/grafana \
-        -v "$VOLUME_CONFIG":/etc/grafana/provisioning/datasources:ro \
-        -e GF_AUTH_ANONYMOUS_ENABLED=true \
-        -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
-        -e GF_FEATURE_TOGGLES_ENABLE=traceqlEditor \
-        -m 256M \
-        "$IMAGE"
+        -p "$PORT":9090 \
+        -v "$VOLUME_DATA":/prometheus \
+        -v "$VOLUME_CONFIG":/etc/prometheus:ro \
+        -m 512M \
+        "$IMAGE" \
+        --config.file=/etc/prometheus/prometheus.yml \
+        --storage.tsdb.path=/prometheus \
+        --web.console.libraries=/usr/share/prometheus/console_libraries \
+        --web.console.templates=/usr/share/prometheus/consoles
 
     echo ""
-    echo "Grafana iniciado com sucesso!"
-    echo "URL: http://localhost:$PORT"
+    echo "Prometheus iniciado com sucesso!"
+    echo "HTTP API: http://localhost:$PORT"
     echo ""
-    echo "Aguarde alguns segundos para o Grafana inicializar completamente."
-    echo "Login: admin / admin (ou acesso anônimo como Admin)"
+    echo "Aguarde alguns segundos para o Prometheus inicializar completamente."
 }
 
 cmd_stop() {
-    echo "Parando Grafana..."
+    echo "Parando Prometheus..."
 
     if ! check_container_running; then
         echo "Container '$CONTAINER_NAME' não está rodando."
@@ -180,7 +162,7 @@ cmd_stop() {
 }
 
 cmd_status() {
-    echo "Status do Grafana:"
+    echo "Status do Prometheus:"
     echo ""
 
     if check_container_running; then
@@ -189,7 +171,7 @@ cmd_status() {
         echo ""
         container list
         echo ""
-        echo "URL: http://localhost:$PORT"
+        echo "HTTP API: http://localhost:$PORT"
     else
         echo "Container: $CONTAINER_NAME"
         echo "Status: PARADO ou NÃO EXISTE"
@@ -202,13 +184,6 @@ cmd_status() {
     echo ""
     echo "Volume de config '$VOLUME_CONFIG':"
     check_volume_config_exists && echo "  Existe" || echo "  Não existe"
-
-    echo ""
-    echo "Dependências:"
-    echo -n "  Tempo ($TEMPO_CONTAINER): "
-    container list --quiet 2>/dev/null | grep -q "^$TEMPO_CONTAINER$" && echo "✅ Rodando" || echo "❌ Parado"
-    echo -n "  Prometheus ($PROMETHEUS_CONTAINER): "
-    container list --quiet 2>/dev/null | grep -q "^$PROMETHEUS_CONTAINER$" && echo "✅ Rodando" || echo "❌ Parado"
 }
 
 cmd_logs() {
@@ -230,7 +205,7 @@ cmd_shell() {
 }
 
 cmd_reset() {
-    echo "⚠️  ATENÇÃO: Isso vai remover o container, dashboards e configurações!"
+    echo "⚠️  ATENÇÃO: Isso vai remover o container e todos os dados!"
     read -p "Tem certeza? (y/N): " confirm
 
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
@@ -244,6 +219,32 @@ cmd_reset() {
     container volume delete "$VOLUME_CONFIG" 2>/dev/null || true
 
     echo "Reset completo. Use '$0 start' para criar um novo container."
+}
+
+cmd_test() {
+    if ! check_container_running; then
+        echo "Container '$CONTAINER_NAME' não está rodando. Use '$0 start' primeiro."
+        return 1
+    fi
+
+    echo "Testando conectividade com Prometheus..."
+    echo ""
+
+    echo "1. Verificando /-/ready..."
+    local http_code
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/-/ready 2>/dev/null)
+
+    if [ "$http_code" = "200" ]; then
+        echo "   ✅ Prometheus está pronto (HTTP $http_code)"
+    else
+        echo "   ❌ Prometheus não está pronto (HTTP $http_code)"
+        return 1
+    fi
+
+    echo ""
+    echo "✅ Todos os testes passaram!"
+    echo ""
+    echo "Acesse o Prometheus em: http://localhost:$PORT"
 }
 
 # ============================================
@@ -267,6 +268,9 @@ case "$1" in
         ;;
     reset)
         cmd_reset
+        ;;
+    test)
+        cmd_test
         ;;
     *)
         print_usage
