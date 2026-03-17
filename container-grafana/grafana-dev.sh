@@ -9,6 +9,7 @@ VOLUME_DATA="grafana-data"
 VOLUME_CONFIG="grafana-config"
 PORT=3000
 IMAGE="grafana/grafana:11.4.0"
+MAC_ADDRESS="02:00:00:00:00:06"
 CONFIG_FILE="datasources.yaml"
 
 # Dependências
@@ -150,6 +151,7 @@ cmd_start() {
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
+        --network "default,mac=$MAC_ADDRESS" \
         -p "$PORT":3000 \
         -v "$VOLUME_DATA":/var/lib/grafana \
         -v "$VOLUME_CONFIG":/etc/grafana/provisioning/datasources:ro \

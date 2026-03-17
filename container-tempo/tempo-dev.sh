@@ -11,6 +11,7 @@ PORT=3200
 PORT_OTLP_GRPC=4317
 PORT_OTLP_HTTP=4318
 IMAGE="grafana/tempo:2.6.1"
+MAC_ADDRESS="02:00:00:00:00:03"
 CONFIG_FILE="tempo.yaml"
 
 # Diretório do script
@@ -107,6 +108,7 @@ cmd_start() {
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
+        --network "default,mac=$MAC_ADDRESS" \
         -p "$PORT":3200 \
         -p "$PORT_OTLP_GRPC":4317 \
         -p "$PORT_OTLP_HTTP":4318 \

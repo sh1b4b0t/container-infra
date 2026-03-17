@@ -9,6 +9,7 @@ VOLUME_DATA="postgres-data"
 VOLUME_CONFIG="postgres-config"
 PORT=5432
 IMAGE="postgres:17-alpine"
+MAC_ADDRESS="02:00:00:00:00:01"
 
 # Arquivos externos
 ENV_FILE=".env"
@@ -118,6 +119,7 @@ cmd_start() {
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
+        --network "default,mac=$MAC_ADDRESS" \
         -e POSTGRES_USER="$POSTGRES_USER" \
         -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
         -e POSTGRES_DB="$POSTGRES_DB" \
