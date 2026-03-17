@@ -64,11 +64,11 @@ Portas 4315/4316 são usadas (em vez de 4317/4318) para evitar conflito com o Te
 
 | Sinal | Destino | Endereço |
 |-------|---------|----------|
-| Traces | Tempo (via OTLP gRPC) | `192.168.64.1:4317` |
+| Traces | Tempo (via OTLP gRPC) | `192.168.65.1:4317` |
 | Metrics | Prometheus exporter | `:8889` (Prometheus scrapes) |
 | Logs | Debug exporter (stdout) | — |
 
-O IP `192.168.64.1` é o gateway padrão do Apple Container, que permite comunicação entre containers e o host.
+O IP `192.168.65.1` é o gateway padrão do Apple Container, que permite comunicação entre containers e o host.
 
 ## Configuração do Claude Code
 

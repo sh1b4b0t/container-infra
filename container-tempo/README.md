@@ -106,7 +106,7 @@ Para aplicar mudanças na configuração, execute `reset` e `start` novamente.
 Para visualizar traces no Grafana, adicione o Tempo como datasource:
 
 ```
-URL: http://192.168.64.1:3200
+URL: http://192.168.65.1:3200
 ```
 
 ## Referências

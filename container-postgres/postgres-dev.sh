@@ -133,7 +133,7 @@ cmd_start() {
     echo ""
     echo "PostgreSQL iniciado com sucesso!"
     echo "String de conexão: postgresql://$POSTGRES_USER:****@localhost:$PORT/$POSTGRES_DB"
-    echo "Inter-container: postgresql://$POSTGRES_USER:****@192.168.64.1:$PORT/$POSTGRES_DB"
+    echo "Inter-container: postgresql://$POSTGRES_USER:****@192.168.65.1:$PORT/$POSTGRES_DB"
     echo ""
     echo "Aguarde alguns segundos para o PostgreSQL inicializar completamente."
 }
@@ -164,7 +164,7 @@ cmd_status() {
             POSTGRES_USER=$(get_env_var "POSTGRES_USER")
             POSTGRES_DB=$(get_env_var "POSTGRES_DB")
             echo "String de conexão: postgresql://$POSTGRES_USER:****@localhost:$PORT/$POSTGRES_DB"
-            echo "Inter-container: postgresql://$POSTGRES_USER:****@192.168.64.1:$PORT/$POSTGRES_DB"
+            echo "Inter-container: postgresql://$POSTGRES_USER:****@192.168.65.1:$PORT/$POSTGRES_DB"
         fi
     else
         echo "Container: $CONTAINER_NAME"
@@ -326,10 +326,10 @@ cmd_add_service() {
     echo ""
     echo "Strings de conexão:"
     echo "  Localhost:     postgresql://$db_user:$db_password@localhost:$PORT/$db_name"
-    echo "  Inter-container: postgresql://$db_user:$db_password@192.168.64.1:$PORT/$db_name"
+    echo "  Inter-container: postgresql://$db_user:$db_password@192.168.65.1:$PORT/$db_name"
     echo ""
     echo "💡 Adicione ao seu .env:"
-    echo "   $(echo $service_name | tr '[:lower:]' '[:upper:]')_DATABASE_URL=postgresql://$db_user:$db_password@192.168.64.1:$PORT/$db_name"
+    echo "   $(echo $service_name | tr '[:lower:]' '[:upper:]')_DATABASE_URL=postgresql://$db_user:$db_password@192.168.65.1:$PORT/$db_name"
 }
 
 cmd_list_services() {

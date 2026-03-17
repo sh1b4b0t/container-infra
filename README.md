@@ -49,9 +49,9 @@ container-infra/
 
 | Container | Serviço | Porta(s) | String de Conexão |
 |-----------|---------|----------|-------------------|
-| container-postgres | PostgreSQL 17 | 5432 | `postgresql://postgres:postgres@192.168.64.1:5432` |
-| container-redis | Redis 7 | 6379 | `redis://192.168.64.1:6379` |
-| container-litellm | LiteLLM Proxy | 4000 | `http://192.168.64.1:4000/v1` |
+| container-postgres | PostgreSQL 17 | 5432 | `postgresql://postgres:postgres@192.168.65.1:5432` |
+| container-redis | Redis 7 | 6379 | `redis://192.168.65.1:6379` |
+| container-litellm | LiteLLM Proxy | 4000 | `http://192.168.65.1:4000/v1` |
 | container-tempo | Grafana Tempo | 3200, 4317, 4318 | `http://localhost:3200` |
 | container-otel-collector | OpenTelemetry Collector | 4315, 4316, 8888, 8889 | gRPC `localhost:4315` |
 | container-prometheus | Prometheus | 9090 | `http://localhost:9090` |
@@ -102,7 +102,7 @@ Todos os containers seguem:
 - **Config montado como volume** (read-only)
 - **Volumes separados** para data e config
 - **Imagens com versão específica** (não `:latest`)
-- **Gateway IP** `192.168.64.1` para comunicação entre containers
+- **Gateway IP** `192.168.65.1` para comunicação entre containers
 
 ## Auditoria
 

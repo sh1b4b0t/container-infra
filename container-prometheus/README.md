@@ -6,7 +6,7 @@ Prometheus para desenvolvimento local usando Apple containers. Coleta métricas 
 
 - macOS 26 (Tahoe) com Apple Silicon
 - [Apple Container](https://github.com/apple/container) instalado
-- `container-otel-collector` em execução (expondo métricas em `192.168.64.1:8889`)
+- `container-otel-collector` em execução (expondo métricas em `192.168.65.1:8889`)
 
 ## Instalação
 
@@ -61,10 +61,10 @@ chmod +x prometheus-dev.sh
 
 | Job | Target | Descrição |
 |-----|--------|-----------|
-| `otel-collector` | `192.168.64.1:8889` | Métricas expostas pelo OTEL Collector |
+| `otel-collector` | `192.168.65.1:8889` | Métricas expostas pelo OTEL Collector |
 | `prometheus` | `localhost:9090` | Auto-monitoramento do Prometheus |
 
-O endereço `192.168.64.1` é o gateway IP da rede de containers Apple, permitindo que o Prometheus (rodando dentro de um container) alcance serviços no host.
+O endereço `192.168.65.1` é o gateway IP da rede de containers Apple, permitindo que o Prometheus (rodando dentro de um container) alcance serviços no host.
 
 ## Volumes
 
@@ -86,7 +86,7 @@ Para aplicar mudanças na configuração, execute `reset` e `start` novamente.
 Para usar o Prometheus como datasource no Grafana, adicione a URL:
 
 ```
-http://192.168.64.1:9090
+http://192.168.65.1:9090
 ```
 
 ## Referências

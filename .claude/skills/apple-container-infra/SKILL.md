@@ -374,8 +374,8 @@ general_settings:
 API_KEY=your-api-key
 
 # Inter-container URLs — gateway IP used as template, overridden dynamically at runtime
-DATABASE_URL=postgresql://postgres:postgres@192.168.64.1:5432/dbname
-REDIS_HOST=192.168.64.1
+DATABASE_URL=postgresql://postgres:postgres@192.168.65.1:5432/dbname
+REDIS_HOST=192.168.65.1
 REDIS_PORT=6379
 ```
 
@@ -387,7 +387,7 @@ REDIS_PORT=6379
 
 **Option 1: Gateway IP (use in static `.env.example` templates)**
 ```
-macOS Host (192.168.64.1)
+macOS Host (192.168.65.1)
   └── Apple Container Runtime
       ├── postgres-dev :5432
       ├── redis-dev :6379
@@ -481,8 +481,8 @@ See [issue #333](https://github.com/apple/container/issues/333) for details.
 | Hardcoding credentials in script | Move to .env, read with `get_env_var VAR` (not inline grep) |
 | Using `:latest` tag | Pin to specific version like `postgres:17-alpine` |
 | Database mounting to data subdirectory | Mount to parent dir (PostgreSQL: `/var/lib/postgresql`) |
-| Using `localhost` in inter-container config | Use gateway IP `192.168.64.1` or dynamic `container inspect` |
-| Hardcoding `192.168.64.1` when it fails | Use `get_container_ip "$CONTAINER_VAR"` to detect IP dynamically |
+| Using `localhost` in inter-container config | Use gateway IP `192.168.65.1` or dynamic `container inspect` |
+| Hardcoding `192.168.65.1` when it fails | Use `get_container_ip "$CONTAINER_VAR"` to detect IP dynamically |
 | Named per-dependency IP functions (`get_tempo_ip`, `get_postgres_ip`) | Use the single generic `get_container_ip()` helper with the container name as argument |
 | Inline `container inspect` pipe chains in `cmd_start` | Extract to `get_container_ip()` — keeps `cmd_start` readable |
 | Missing stopped-container restart path | Add `container list -a` check before `container run` in `cmd_start` |
