@@ -9,6 +9,7 @@ VOLUME_DATA="prometheus-data"
 VOLUME_CONFIG="prometheus-config"
 PORT=9090
 IMAGE="prom/prometheus:v3.2.1"
+MAC_ADDRESS="02:00:00:00:00:05"
 CONFIG_FILE="prometheus.yml"
 
 OTEL_COLLECTOR_CONTAINER="otel-collector-dev"
@@ -132,6 +133,7 @@ cmd_start() {
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
+        --network "default,mac=$MAC_ADDRESS" \
         -p "$PORT":9090 \
         -v "$VOLUME_DATA":/prometheus \
         -v "$VOLUME_CONFIG":/etc/prometheus:ro \

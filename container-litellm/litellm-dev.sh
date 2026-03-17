@@ -9,6 +9,7 @@ VOLUME_DATA="litellm-data"
 VOLUME_CONFIG="litellm-config"
 PORT=4000
 IMAGE="ghcr.io/berriai/litellm:main-stable"
+MAC_ADDRESS="02:00:00:00:00:07"
 CONFIG_FILE="config.yaml"
 ENV_FILE=".env"
 POSTGRES_CONTAINER="postgres-dev"
@@ -194,6 +195,7 @@ cmd_start() {
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
+        --network "default,mac=$MAC_ADDRESS" \
         -p "$PORT":4000 \
         -v "$VOLUME_DATA":/app/data \
         -v "$VOLUME_CONFIG":/app/config \

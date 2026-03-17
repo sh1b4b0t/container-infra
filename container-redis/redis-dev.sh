@@ -9,6 +9,7 @@ VOLUME_DATA="redis-data"
 VOLUME_CONFIG="redis-config"
 PORT=6379
 IMAGE="redis:7-alpine"
+MAC_ADDRESS="02:00:00:00:00:02"
 CONFIG_FILE="redis.conf"
 
 # Diretório do script
@@ -94,6 +95,7 @@ cmd_start() {
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
+        --network "default,mac=$MAC_ADDRESS" \
         -p "$PORT":6379 \
         -v "$VOLUME_DATA":/data \
         -v "$VOLUME_CONFIG":/usr/local/etc/redis:ro \

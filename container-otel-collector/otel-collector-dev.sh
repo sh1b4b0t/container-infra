@@ -12,6 +12,7 @@ PORT_HTTP=4316
 PORT_METRICS=8888
 PORT_PROMETHEUS=8889
 IMAGE="otel/opentelemetry-collector-contrib:0.122.0"
+MAC_ADDRESS="02:00:00:00:00:04"
 CONFIG_FILE="otel-collector.yaml"
 
 TEMPO_CONTAINER="tempo-dev"
@@ -141,6 +142,7 @@ cmd_start() {
     echo "Criando container '$CONTAINER_NAME'..."
     container run -d \
         --name "$CONTAINER_NAME" \
+        --network "default,mac=$MAC_ADDRESS" \
         -p "$PORT":4315 \
         -p "$PORT_HTTP":4316 \
         -p "$PORT_METRICS":8888 \
