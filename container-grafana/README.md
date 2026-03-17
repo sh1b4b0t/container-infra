@@ -52,7 +52,7 @@ O Tempo é provisionado automaticamente como datasource padrão via `datasources
 
 | Datasource | URL | Tipo |
 |------------|-----|------|
-| Tempo | `http://192.168.64.1:3200` | Distributed Tracing |
+| Tempo | `http://192.168.65.1:3200` | Distributed Tracing |
 
 Para atualizar a URL do Tempo, edite `datasources.yaml` e execute `reset` + `start`.
 

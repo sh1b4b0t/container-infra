@@ -13,7 +13,7 @@ processors:
 
 exporters:
   otlp/tempo:
-    endpoint: 192.168.64.1:4317
+    endpoint: 192.168.65.1:4317
     tls:
       insecure: true
   prometheus:

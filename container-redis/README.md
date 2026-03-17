@@ -35,7 +35,7 @@ redis://localhost:6379
 
 Para comunicação entre containers, use o IP do gateway:
 ```
-redis://192.168.64.1:6379
+redis://192.168.65.1:6379
 ```
 
 ### Comandos Disponíveis

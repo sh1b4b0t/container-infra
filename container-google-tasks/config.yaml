@@ -1,0 +1,8 @@
+# Google Tasks MCP Server
+# Configuração via variáveis de ambiente no .env
+mcp:
+  name: "Google Tasks MCP"
+  version: "1.0.0"
+  description: "Servidor MCP para interação com Google Tasks API"
+  port: 8080
+  log_level: INFO

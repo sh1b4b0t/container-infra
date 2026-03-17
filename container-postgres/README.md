@@ -40,7 +40,7 @@ chmod +x postgres-dev.sh
 | Contexto | String |
 |----------|--------|
 | Localhost | `postgresql://postgres:postgres@localhost:5432/postgres` |
-| Inter-container | `postgresql://postgres:postgres@192.168.64.1:5432/postgres` |
+| Inter-container | `postgresql://postgres:postgres@192.168.65.1:5432/postgres` |
 
 ### Comandos Disponíveis
 
@@ -79,10 +79,10 @@ Criando serviço 'litellm'...
 
 Strings de conexão:
   Localhost:       postgresql://litellm:7Efb6untSBiXHpVn@localhost:5432/litellm
-  Inter-container: postgresql://litellm:7Efb6untSBiXHpVn@192.168.64.1:5432/litellm
+  Inter-container: postgresql://litellm:7Efb6untSBiXHpVn@192.168.65.1:5432/litellm
 
 💡 Adicione ao seu .env:
-   LITELLM_DATABASE_URL=postgresql://litellm:7Efb6untSBiXHpVn@192.168.64.1:5432/litellm
+   LITELLM_DATABASE_URL=postgresql://litellm:7Efb6untSBiXHpVn@192.168.65.1:5432/litellm
 ```
 
 ### Listar serviços
@@ -133,7 +133,7 @@ POSTGRES_DB=postgres
 |------------|-----------|
 | Container `postgres-dev` | Imagem `postgres:17-alpine`, porta 5432 |
 | Volume `postgres-data` | Persistência de dados em `/var/lib/postgresql` |
-| Gateway IP `192.168.64.1` | Comunicação entre containers |
+| Gateway IP `192.168.65.1` | Comunicação entre containers |
 
 ## Fluxo de Trabalho
 

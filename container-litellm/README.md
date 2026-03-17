@@ -41,7 +41,7 @@ http://localhost:4000/v1
 
 Para comunicação entre containers, use o IP do gateway:
 ```
-http://192.168.64.1:4000/v1
+http://192.168.65.1:4000/v1
 ```
 
 ### Autenticação
