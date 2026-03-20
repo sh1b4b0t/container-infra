@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 mcp = FastMCP("Image Scan")
 
-_SAM3_MODEL_PATH = os.environ.get("SAM3_MODEL_PATH", "/app/src/sam3.pt")
+_SAM3_MODEL_PATH = os.environ.get("SAM3_MODEL_PATH", "/models/sam3.pt")
 _LITELLM_URL = os.environ.get("LITELLM_URL", "http://192.168.65.1:4000")
 _LITELLM_API_KEY = os.environ.get("LITELLM_API_KEY", "local")
 _LITELLM_MODEL = os.environ.get("LITELLM_MODEL", "lmstudio")
