@@ -18,15 +18,9 @@ RUN pip uninstall clip -y 2>/dev/null || true && \
 
 COPY src/ ./src/
 
-RUN mkdir -p /app/models
-
-# src/ como working dir não é necessário — CMD usa caminho completo.
-# Imports bare (from scanner import ...) funcionam porque python src/server.py
-# adiciona src/ automaticamente ao sys.path pelo mecanismo de __main__ do Python.
-
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8081
-ENV SAM3_MODEL_PATH=/app/models/sam3.pt
+ENV SAM3_MODEL_PATH=/app/src/sam3.pt
 
 EXPOSE 8081
 

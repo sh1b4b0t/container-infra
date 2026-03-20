@@ -13,3 +13,8 @@
 # Backups
 *.sql
 *.rdb
+
+# ML model weights (large files, not versioned in git)
+*.pt
+*.pth
+*.onnx
