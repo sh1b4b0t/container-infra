@@ -8,6 +8,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 import pytest
 
+# Pre-import src.server so that @patch("src.server.*") decorators can resolve
+# the module at decoration time (before test body runs).
+import src.server  # noqa: F401
+
 
 @pytest.fixture(autouse=True)
 def clear_sam3_cache():
