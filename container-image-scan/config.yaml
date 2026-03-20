@@ -1,8 +1,0 @@
-# Conceitos padrão por categoria.
-# Estes nomes são passados como text prompts ao SAM-3.
-watermark:
-  concepts: ["watermark", "text overlay", "copyright notice", "username", "sparkle icon"]
-logo:
-  concepts: ["logo", "brand icon", "app icon", "company logo"]
-body_parts:
-  concepts: ["exposed skin", "naked body", "nudity"]
