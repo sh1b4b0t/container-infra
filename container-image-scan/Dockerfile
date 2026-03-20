@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Dependências de sistema para Ultralytics/OpenCV
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     git \
     curl \
@@ -19,8 +19,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --no-dev --no-install-project --frozen
 
 # Fix do CLIP para SAM-3 (https://docs.ultralytics.com/pt/models/sam-3/)
-RUN .venv/bin/pip uninstall clip -y 2>/dev/null || true && \
-    .venv/bin/pip install git+https://github.com/ultralytics/CLIP.git
+RUN uv pip uninstall clip 2>/dev/null || true && \
+    uv pip install git+https://github.com/ultralytics/CLIP.git
 
 # Copiar apenas código-fonte (*.pt excluídos via .dockerignore)
 COPY src/ ./src/
