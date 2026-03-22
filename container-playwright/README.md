@@ -1,6 +1,6 @@
 # container-playwright
 
-Playwright v1.51 para desenvolvimento local usando Apple containers. Expõe um servidor WebSocket ao qual outros serviços ou testes locais podem conectar para executar automação de browser remotamente.
+Playwright microservice para desenvolvimento local usando Apple containers. Expõe um endpoint HTTP `/scrape` compatível com o Firecrawl (`PLAYWRIGHT_MICROSERVICE_URL`).
 
 ## Requisitos
 
@@ -19,7 +19,7 @@ chmod +x playwright-dev.sh
 ## Uso
 
 ```bash
-# Iniciar servidor Playwright
+# Iniciar serviço Playwright
 ./playwright-dev.sh start
 
 # Verificar status
@@ -29,75 +29,63 @@ chmod +x playwright-dev.sh
 ./playwright-dev.sh stop
 ```
 
-### Conectar ao servidor
+### Endpoint
 
-**JavaScript/TypeScript:**
-```js
-const browser = await playwright['chromium'].connect('ws://localhost:3000/');
-```
-
-**Python:**
-```python
-from playwright.sync_api import sync_playwright
-
-with sync_playwright() as p:
-    browser = p.chromium.connect("ws://localhost:3000/")
+```bash
+# Fazer scrape de uma URL
+curl -X POST http://localhost:3000/scrape \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
 ```
 
 ### Strings de Conexão
 
 | Contexto | URL |
 |----------|-----|
-| Localhost | `ws://localhost:3000/` |
-| Inter-container | `ws://192.168.65.1:3000/` |
+| Localhost | `http://localhost:3000/scrape` |
+| Inter-container | `http://192.168.65.1:3000/scrape` |
 
 ### Comandos Disponíveis
 
 | Comando | Descrição |
 |---------|-----------|
-| `start` | Inicia o container Playwright (servidor WebSocket) |
+| `start` | Inicia o container Playwright |
 | `stop` | Para o container |
 | `status` | Mostra status do container e volumes |
-| `logs` | Exibe logs do servidor |
+| `logs` | Exibe logs do serviço |
 | `shell` | Abre shell (sh) no container |
 | `reset` | Remove container e volumes (apaga todos os dados) |
 
 ## Configuração
 
-Edite `playwright.conf` para ajustar as configurações do servidor:
+Edite `playwright.conf` para ajustar as configurações do serviço:
 
 ```ini
-# Porta do servidor WebSocket (externa)
-PLAYWRIGHT_SERVER_PORT=3000
-
-# Browser a expor: chromium, firefox, webkit
-PLAYWRIGHT_BROWSER=chromium
+# Bloquear downloads de media para reduzir banda (true/false)
+BLOCK_MEDIA=true
 ```
-
-Alterações em `playwright.conf` só têm efeito após `reset` + `start` (o config é copiado para o volume no primeiro start).
 
 ## Volumes
 
 Dois volumes gerenciados pelo Apple container:
 
-- `playwright-data` — artefatos do Playwright (`/home/pwuser/playwright-data`): screenshots, traces, downloads
-- `playwright-config` — `playwright.conf` montado em `/home/pwuser/config` (read-only)
+- `playwright-data` — artefatos temporários (`/app/data`)
+- `playwright-config` — `playwright.conf` montado em `/app/config` (read-only)
 
 ## Arquitetura
 
 ```
 macOS Host
   └── Apple Container Runtime
-      └── playwright-dev (mcr.microsoft.com/playwright:v1.51.0-noble)
-          ├── :3000  → WebSocket (run-server)
-          ├── playwright-data   → /home/pwuser/playwright-data
-          └── playwright-config → /home/pwuser/config (ro)
+      └── playwright-dev (ghcr.io/mendableai/playwright-service)
+          ├── :3000  → HTTP /scrape
+          ├── playwright-data   → /app/data
+          └── playwright-config → /app/config (ro)
 ```
 
-O servidor é iniciado com `npx playwright run-server --port 3000 --host 0.0.0.0`, aceitando conexões de qualquer origem. O container roda como `pwuser` (não-root), conforme recomendado pela documentação oficial.
+Serviço HTTP de scraping baseado em Playwright, projetado para integração com o Firecrawl via `PLAYWRIGHT_MICROSERVICE_URL=http://192.168.65.1:3000/scrape`.
 
 ## Referências
 
 - [Apple Container](https://github.com/apple/container)
-- [Playwright Docker docs](https://playwright.dev/docs/docker)
-- [Playwright run-server](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-server)
+- [Firecrawl Playwright Service](https://github.com/mendableai/firecrawl/tree/main/apps/playwright-service-ts)
