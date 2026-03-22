@@ -7,7 +7,8 @@ set -e
 CONTAINER_NAME="playwright-dev"
 VOLUME_DATA="playwright-data"
 VOLUME_CONFIG="playwright-config"
-IMAGE="mcr.microsoft.com/playwright:v1.51.0-noble"
+PORT=3000
+IMAGE="ghcr.io/mendableai/playwright-service:main-latest"
 MAC_ADDRESS="02:00:00:00:00:09"
 CONFIG_FILE="playwright.conf"
 
@@ -20,14 +21,14 @@ print_usage() {
     echo "Uso: $0 {start|stop|status|logs|shell|reset}"
     echo ""
     echo "Comandos:"
-    echo "  start   Inicia o container Playwright (servidor WebSocket)"
+    echo "  start   Inicia o container Playwright (serviço HTTP de scraping)"
     echo "  stop    Para o container"
     echo "  status  Mostra status do container"
     echo "  logs    Exibe logs do Playwright"
     echo "  shell   Abre shell (sh) no container"
     echo "  reset   Remove container e volumes (CUIDADO: apaga todos os dados)"
     echo ""
-    echo "Conexão WebSocket: ws://localhost:\$(get_config_var PLAYWRIGHT_SERVER_PORT)/"
+    echo "Endpoint: http://localhost:$PORT/scrape"
 }
 
 check_container_running() {
@@ -79,8 +80,7 @@ cmd_start() {
     check_config_file || return 1
 
     # Ler configurações
-    PORT=$(get_config_var "PLAYWRIGHT_SERVER_PORT")
-    BROWSER=$(get_config_var "PLAYWRIGHT_BROWSER")
+    BLOCK_MEDIA=$(get_config_var "BLOCK_MEDIA")
 
     # Verificar se container já está rodando
     if check_container_running; then
@@ -110,20 +110,18 @@ cmd_start() {
         --name "$CONTAINER_NAME" \
         --network "default,mac=$MAC_ADDRESS" \
         -p "$PORT":3000 \
-        -v "$VOLUME_DATA":/home/pwuser/playwright-data \
-        -v "$VOLUME_CONFIG":/home/pwuser/config:ro \
-        --user pwuser \
-        --workdir /home/pwuser \
+        -v "$VOLUME_DATA":/app/data \
+        -v "$VOLUME_CONFIG":/app/config:ro \
+        -e BLOCK_MEDIA="$BLOCK_MEDIA" \
         -m 2G \
-        "$IMAGE" \
-        /bin/sh -c "npx playwright run-server --port 3000 --host 0.0.0.0"
+        "$IMAGE"
 
     echo ""
     echo "Playwright iniciado com sucesso!"
-    echo "  WebSocket ($BROWSER): ws://localhost:$PORT/"
-    echo "  Inter-container:      ws://192.168.65.1:$PORT/"
+    echo "  Scrape endpoint: http://localhost:$PORT/scrape"
+    echo "  Inter-container: http://192.168.65.1:$PORT/scrape"
     echo ""
-    echo "Aguarde alguns segundos para o servidor inicializar completamente."
+    echo "Aguarde alguns segundos para o serviço inicializar completamente."
 }
 
 cmd_stop() {
@@ -148,10 +146,8 @@ cmd_status() {
         echo ""
         container list
         echo ""
-        PORT=$(get_config_var "PLAYWRIGHT_SERVER_PORT")
-        BROWSER=$(get_config_var "PLAYWRIGHT_BROWSER")
-        echo "  WebSocket ($BROWSER): ws://localhost:$PORT/"
-        echo "  Inter-container:      ws://192.168.65.1:$PORT/"
+        echo "  Scrape endpoint: http://localhost:$PORT/scrape"
+        echo "  Inter-container: http://192.168.65.1:$PORT/scrape"
     else
         echo "Container: $CONTAINER_NAME"
         echo "Status: PARADO ou NÃO EXISTE"
