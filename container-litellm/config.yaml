@@ -2,7 +2,7 @@ model_list:
   # LMStudio (local) - OpenAI compatible
   - model_name: lmstudio
     litellm_params:
-      model: openai/
+      model: openai/huihui-qwen3-vl-32b-instruct-abliterated
       api_base: http://192.168.15.100:11434/v1
       api_key: lmstudio
 
