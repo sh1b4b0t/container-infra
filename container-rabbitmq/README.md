@@ -29,7 +29,7 @@ chmod +x rabbitmq-dev.sh
 # Verificar status
 ./rabbitmq-dev.sh status
 
-# Acessar Management UI
+# Exibir URL e usuário do Management UI
 ./rabbitmq-dev.sh management
 ```
 
@@ -37,8 +37,8 @@ chmod +x rabbitmq-dev.sh
 
 | Contexto | String |
 |----------|--------|
-| AMQP localhost | `amqp://rabbitmq:rabbitmq@localhost:5672` |
-| AMQP inter-container | `amqp://rabbitmq:rabbitmq@192.168.65.1:5672` |
+| AMQP localhost | `amqp://rabbitmq:rabbitmq@localhost:5672` (credenciais do `.env`) |
+| AMQP inter-container | `amqp://rabbitmq:rabbitmq@192.168.65.1:5672` (credenciais do `.env`) |
 | Management UI | `http://localhost:15672` |
 
 ### Comandos Disponíveis
@@ -51,7 +51,7 @@ chmod +x rabbitmq-dev.sh
 | `logs` | Exibe logs do RabbitMQ |
 | `shell` | Abre shell (sh) no container |
 | `reset` | Remove container e volumes (apaga todos os dados) |
-| `management` | Exibe URL e credenciais do Management UI |
+| `management` | Exibe URL e usuário do Management UI |
 
 ## Configuração
 
