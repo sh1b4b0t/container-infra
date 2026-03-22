@@ -27,7 +27,7 @@ print_usage() {
     echo "  stop        Para o container"
     echo "  status      Mostra status do container"
     echo "  logs        Exibe logs do RabbitMQ"
-    echo "  shell       Abre rabbitmqctl no container"
+    echo "  shell       Abre shell (sh) no container"
     echo "  reset       Remove container e volumes (CUIDADO: apaga todos os dados)"
     echo "  management  Exibe URL do Management UI"
     echo ""
@@ -86,6 +86,7 @@ cmd_start() {
 
     RABBITMQ_USER=$(get_env_var "RABBITMQ_USER")
     RABBITMQ_PASSWORD=$(get_env_var "RABBITMQ_PASSWORD")
+    RABBITMQ_VHOST=$(get_env_var "RABBITMQ_VHOST")
 
     if check_container_running; then
         echo "Container '$CONTAINER_NAME' já está rodando."
@@ -116,6 +117,7 @@ cmd_start() {
         -v "$VOLUME_CONFIG":/etc/rabbitmq/conf.d:ro \
         -e RABBITMQ_DEFAULT_USER="$RABBITMQ_USER" \
         -e RABBITMQ_DEFAULT_PASS="$RABBITMQ_PASSWORD" \
+        -e RABBITMQ_DEFAULT_VHOST="$RABBITMQ_VHOST" \
         -m 512M \
         "$IMAGE"
 
@@ -191,7 +193,7 @@ cmd_shell() {
         return 1
     fi
 
-    container exec -it "$CONTAINER_NAME" rabbitmqctl
+    container exec -it "$CONTAINER_NAME" sh
 }
 
 cmd_reset() {
